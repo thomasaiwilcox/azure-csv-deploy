@@ -1,4 +1,4 @@
-# Shared helpers for Deploy-Vnets.ps1 and Deploy-Vms.ps1.
+# Shared CSV readers, validation and Azure loop for all three deployment scripts.
 # Cell readers apply defaults and catch editing mistakes; the Azure loop is at the end.
 Set-StrictMode -Version Latest
 
@@ -170,7 +170,7 @@ function Import-DeploymentCsv {
         $rowNumber = 1
         while (-not $parser.EndOfData) {
             $rowNumber++
-                try {
+            try {
                 $fields = $parser.ReadFields()
             }
             catch {
@@ -265,29 +265,12 @@ function Assert-SshPublicKey([string] $Value, [string] $Action) {
     }
 }
 
-function Write-DeploymentParameterFile {
-    param([object[]] $Plans, [string] $OutputDirectory, [string] $NameProperty)
-    $null = New-Item -ItemType Directory -Path $OutputDirectory -Force
-    $OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
-    foreach ($plan in $Plans) {
-        $path = Join-Path $OutputDirectory ("{0:D4}-{1}.parameters.json" -f $plan.Row, $plan.$NameProperty)
-        $document = [ordered]@{
-            '$schema'      = 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#'
-            contentVersion = '1.0.0.0'
-            parameters     = $plan.Parameters
-        }
-        $json = ConvertTo-OrderedValue $document | ConvertTo-Json -Depth 100 -WarningAction Stop
-        # Explicit LF and UTF-8 without BOM keep generated files identical on all OSes.
-        [System.IO.File]::WriteAllText($path, ($json.Replace("`r`n", "`n") + "`n"), [System.Text.UTF8Encoding]::new($false))
-        $plan | Add-Member -NotePropertyName ParameterFile -NotePropertyValue $path
-    }
-}
+. (Join-Path $PSScriptRoot 'DeploymentFiles.ps1')
 
 # Work through the rows in order, selecting the subscription explicitly each time.
 function Invoke-DeploymentPlan {
     param(
         [object[]] $Plans,
-        [string] $TemplateFile,
         [string] $Action,
         [string] $NameProperty,
         [string] $ResourceLabel,
@@ -328,7 +311,7 @@ function Invoke-DeploymentPlan {
             }
             $deployment = @{
                 ResourceGroupName     = $plan.ResourceGroupName
-                TemplateFile          = $TemplateFile
+                TemplateFile          = $plan.TemplateFile
                 TemplateParameterFile = $plan.ParameterFile
                 Mode                  = 'Incremental'
                 DefaultProfile        = $context

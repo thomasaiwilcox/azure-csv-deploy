@@ -29,7 +29,9 @@ availability, quota, image compatibility and permissions.
 Default paths are relative to the script; paths you supply are relative to your
 current directory. `-OutputDirectory` changes the generated file location, and
 `-TemplateFile` selects a compatible alternative template. Reruns overwrite files
-with the same row number and resource name.
+for the same subscription, resource group and resource name, including manual edits.
+Generated filenames no longer include CSV row numbers. See the
+[batch guide](deployment-batches.md) to deploy generated files separately.
 
 ## Field conventions
 

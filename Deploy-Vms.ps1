@@ -707,11 +707,11 @@ $plans = @(
 )
 
 # Write one ARM parameter file per row. Generate stops here; other actions use Azure.
-Write-DeploymentParameterFile -Plans $plans -OutputDirectory $OutputDirectory -NameProperty VmName
+Write-DeploymentBatch -TemplateFile $TemplateFile -Plans $plans -OutputDirectory $OutputDirectory -NameProperty VmName
 if ($Action -eq 'Generate') {
     $plans | Select-Object SubscriptionId, ResourceGroupName, VmName, ParameterFile
     return
 }
-Invoke-DeploymentPlan -Plans $plans -TemplateFile $TemplateFile -Action $Action `
+Invoke-DeploymentPlan -Plans $plans -Action $Action `
     -NameProperty VmName -ResourceLabel VM `
     -CreateResourceGroups:$CreateResourceGroups -ContinueOnError:$ContinueOnError

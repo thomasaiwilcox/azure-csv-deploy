@@ -1,6 +1,6 @@
 # Azure CSV Deploy
 
-Two PowerShell scripts to save time deploying Azure virtual networks and VMs.
+PowerShell scripts to save time deploying Azure virtual networks and VMs.
 Put one resource on each CSV row, including its subscription ID, and the script
 loops through the rows for you.
 
@@ -58,10 +58,47 @@ For Azure validation or a preview of changes, use an **existing resource group**
 ./Deploy-Vms.ps1 -CsvPath ./local/vms.csv -Action WhatIf
 ```
 
-These actions also work with `Deploy-Vnets.ps1`. Generated files go in `generated/`
+These actions also work with `Deploy-Vnets.ps1`. Generated files go in `generated/vnets/`
 (VNets) or `generated/vms/` (VMs); change this with `-OutputDirectory`.
 The scripts stop on a deployment error unless you pass `-ContinueOnError`.
 Successful rows stay deployed if a later row fails.
+
+## Generate now, deploy later
+
+Create a separate batch folder for each VNet or VM CSV:
+
+```powershell
+./Deploy-Vnets.ps1 -CsvPath ./local/vnets.csv -Action Generate -OutputDirectory ./generated/network-batch
+./Deploy-Vms.ps1 -CsvPath ./local/vms.csv -Action Generate -OutputDirectory ./generated/vm-batch
+```
+
+Each folder contains a copy of the ARM template, resource-named parameter files
+(such as `vm-linux-dev.parameters.json`), and a `deployments.json` index recording
+subscriptions, resource groups, file paths and deployment order. You can move the
+folder to another machine without the original CSV. Run it with this repository's
+`Deploy-FromFiles.ps1` and `src/` helpers.
+
+Edit the template or parameter files directly if needed, then review and deploy:
+
+```powershell
+# Local checks only; no Azure modules or login needed.
+./Deploy-FromFiles.ps1 -Path ./generated/vm-batch -Action Verify
+
+# Azure checks against existing resource groups.
+./Deploy-FromFiles.ps1 -Path ./generated/vm-batch -Action Validate
+./Deploy-FromFiles.ps1 -Path ./generated/vm-batch -Action WhatIf
+
+# Deploy is the default; missing groups can be created here.
+./Deploy-FromFiles.ps1 -Path ./generated/vm-batch -CreateResourceGroups
+```
+
+Deploy your network batch first when VMs depend on it. The runner uses the current
+file contents, with no hash checks, and deploys only entries in the index. `Verify`
+checks local structure and consistency; Azure validation checks service-specific
+requirements. Neither is a guarantee that deployment will succeed.
+
+Regenerating a batch overwrites generated files, including manual edits. See the
+[batch guide](docs/deployment-batches.md) for folder layout and editing details.
 
 ## More settings
 

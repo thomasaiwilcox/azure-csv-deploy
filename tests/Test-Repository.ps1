@@ -33,8 +33,8 @@ try {
     Push-Location $temp
     try {
         $plans = @(
-            & (Join-Path $root 'Deploy-Vnets.ps1') -CsvPath (Join-Path $root 'examples/vnets.csv') -Action Generate -OutputDirectory $temp
-            & (Join-Path $root 'Deploy-Vms.ps1') -CsvPath (Join-Path $root 'examples/vms.csv') -Action Generate -OutputDirectory $temp
+            & (Join-Path $root 'Deploy-Vnets.ps1') -CsvPath (Join-Path $root 'examples/vnets.csv') -Action Generate -OutputDirectory (Join-Path $temp 'vnets')
+            & (Join-Path $root 'Deploy-Vms.ps1') -CsvPath (Join-Path $root 'examples/vms.csv') -Action Generate -OutputDirectory (Join-Path $temp 'vms')
         )
         foreach ($plan in $plans) {
             $actual = [IO.File]::ReadAllText($plan.ParameterFile)

@@ -3,7 +3,7 @@
 [Back to the project overview](../README.md) · [Virtual machines](virtual-machines.md)
 
 `Deploy-Vnets.ps1` reads one VNet per CSV row and deploys them sequentially using
-`templates/vnet.json`. Each row generates its own ARM parameter file in `generated/`.
+`templates/vnet.json`. Each row generates its own ARM parameter file in `generated/vnets/`.
 Two standalone example parameter files are also supplied in `examples/parameters/`.
 Each row specifies its own `SubscriptionId`, so one CSV can target multiple
 subscriptions. Replace the example subscription GUIDs with your actual IDs.
@@ -16,7 +16,9 @@ Your account needs deployment permissions in each target subscription; register
 Default paths are relative to the script. Paths you supply are relative to your
 current directory. `-OutputDirectory` changes the generated file location, and
 `-TemplateFile` selects a compatible alternative template. Reruns overwrite files
-with the same row number and resource name.
+for the same subscription, resource group and resource name, including manual edits.
+Generated filenames no longer include CSV row numbers. See the
+[batch guide](deployment-batches.md) to deploy generated files separately.
 
 ## CSV columns
 

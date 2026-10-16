@@ -12,7 +12,7 @@ param(
     [Parameter(Mandatory)][string] $CsvPath,
     [ValidateSet('Generate', 'Validate', 'WhatIf', 'Deploy')][string] $Action = 'Deploy',
     [string] $TemplateFile = (Join-Path $PSScriptRoot 'templates/vnet.json'),
-    [string] $OutputDirectory = (Join-Path $PSScriptRoot 'generated'),
+    [string] $OutputDirectory = (Join-Path $PSScriptRoot 'generated/vnets'),
     [switch] $CreateResourceGroups,
     [switch] $ContinueOnError
 )
@@ -157,11 +157,11 @@ $plans = @(
 )
 
 # Write one ARM parameter file per row. Generate stops here; other actions use Azure.
-Write-DeploymentParameterFile -Plans $plans -OutputDirectory $OutputDirectory -NameProperty VnetName
+Write-DeploymentBatch -TemplateFile $TemplateFile -Plans $plans -OutputDirectory $OutputDirectory -NameProperty VnetName
 if ($Action -eq 'Generate') {
     $plans | Select-Object SubscriptionId, ResourceGroupName, VnetName, ParameterFile
     return
 }
-Invoke-DeploymentPlan -Plans $plans -TemplateFile $TemplateFile -Action $Action `
+Invoke-DeploymentPlan -Plans $plans -Action $Action `
     -NameProperty VnetName -ResourceLabel VNet `
     -CreateResourceGroups:$CreateResourceGroups -ContinueOnError:$ContinueOnError
