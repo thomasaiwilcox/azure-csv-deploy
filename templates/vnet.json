@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vnetName": { "type": "string", "minLength": 2, "maxLength": 64 },
+    "location": { "type": "string" },
+    "addressPrefixes": { "type": "array", "minLength": 1 },
+    "dnsServers": { "type": "array", "defaultValue": [] },
+    "subnets": { "type": "array", "defaultValue": [] },
+    "tags": { "type": "object", "defaultValue": {} },
+    "additionalProperties": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": { "description": "Additional writable VNet properties for API version 2025-07-01. Explicit addressSpace, dhcpOptions and subnets parameters take precedence." }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2025-07-01",
+      "name": "[parameters('vnetName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "properties": "[union(parameters('additionalProperties'), createObject('addressSpace', createObject('addressPrefixes', parameters('addressPrefixes')), 'dhcpOptions', createObject('dnsServers', parameters('dnsServers')), 'subnets', parameters('subnets')))]"
+    }
+  ],
+  "outputs": {
+    "vnetId": { "type": "string", "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]" }
+  }
+}

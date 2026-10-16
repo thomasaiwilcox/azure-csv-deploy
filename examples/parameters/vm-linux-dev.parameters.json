@@ -1,0 +1,153 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "createNic": {
+      "value": true
+    },
+    "createPublicIp": {
+      "value": false
+    },
+    "extensions": {
+      "value": []
+    },
+    "identity": {
+      "value": {
+        "type": "SystemAssigned"
+      }
+    },
+    "location": {
+      "value": "uksouth"
+    },
+    "nicName": {
+      "value": "vm-linux-dev-nic"
+    },
+    "nicProperties": {
+      "value": {
+        "dnsSettings": {
+          "dnsServers": []
+        },
+        "enableAcceleratedNetworking": false,
+        "enableIPForwarding": false,
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "primary": true,
+              "privateIPAddressVersion": "IPv4",
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-network-dev/providers/Microsoft.Network/virtualNetworks/vnet-app-dev/subnets/snet-app"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "osProfile": {
+      "value": {
+        "adminUsername": "azureuser",
+        "allowExtensionOperations": true,
+        "computerName": "vm-linux-dev",
+        "linuxConfiguration": {
+          "disablePasswordAuthentication": true,
+          "provisionVMAgent": true,
+          "ssh": {
+            "publicKeys": [
+              {
+                "keyData": "REPLACE_WITH_YOUR_SSH_PUBLIC_KEY",
+                "path": "/home/azureuser/.ssh/authorized_keys"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "plan": {
+      "value": {}
+    },
+    "publicIpName": {
+      "value": "vm-linux-dev-pip"
+    },
+    "publicIpProperties": {
+      "value": {}
+    },
+    "tags": {
+      "value": {
+        "Environment": "dev",
+        "Owner": "platform"
+      }
+    },
+    "vmName": {
+      "value": "vm-linux-dev"
+    },
+    "vmProperties": {
+      "value": {
+        "additionalCapabilities": {
+          "ultraSSDEnabled": false
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true
+          }
+        },
+        "hardwareProfile": {
+          "vmSize": "Standard_D2s_v5"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-vms-dev/providers/Microsoft.Network/networkInterfaces/vm-linux-dev-nic",
+              "properties": {
+                "deleteOption": "Detach",
+                "primary": true
+              }
+            }
+          ]
+        },
+        "priority": "Regular",
+        "securityProfile": {
+          "securityType": "TrustedLaunch",
+          "uefiSettings": {
+            "secureBootEnabled": true,
+            "vTpmEnabled": true
+          }
+        },
+        "storageProfile": {
+          "dataDisks": [
+            {
+              "caching": "ReadOnly",
+              "createOption": "Empty",
+              "deleteOption": "Detach",
+              "diskSizeGB": 128,
+              "lun": 0,
+              "managedDisk": {
+                "storageAccountType": "Premium_LRS"
+              },
+              "name": "vm-linux-dev-data0"
+            }
+          ],
+          "imageReference": {
+            "offer": "ubuntu-24_04-lts",
+            "publisher": "Canonical",
+            "sku": "server",
+            "version": "latest"
+          },
+          "osDisk": {
+            "caching": "ReadWrite",
+            "createOption": "FromImage",
+            "deleteOption": "Detach",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            },
+            "name": "vm-linux-dev-os",
+            "osType": "Linux"
+          }
+        }
+      }
+    },
+    "zones": {
+      "value": []
+    }
+  }
+}

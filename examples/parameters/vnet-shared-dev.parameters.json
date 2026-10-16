@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "additionalProperties": {
+      "value": {
+        "enableDdosProtection": false
+      }
+    },
+    "addressPrefixes": {
+      "value": [
+        "10.20.0.0/16",
+        "10.21.0.0/16"
+      ]
+    },
+    "dnsServers": {
+      "value": []
+    },
+    "location": {
+      "value": "ukwest"
+    },
+    "subnets": {
+      "value": [
+        {
+          "name": "snet-shared",
+          "properties": {
+            "addressPrefix": "10.20.1.0/24",
+            "defaultOutboundAccess": false
+          }
+        }
+      ]
+    },
+    "tags": {
+      "value": {
+        "Environment": "dev",
+        "Owner": "platform"
+      }
+    },
+    "vnetName": {
+      "value": "vnet-shared-dev"
+    }
+  }
+}

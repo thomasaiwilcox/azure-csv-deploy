@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "additionalProperties": {
+      "value": {}
+    },
+    "addressPrefixes": {
+      "value": [
+        "10.10.0.0/16"
+      ]
+    },
+    "dnsServers": {
+      "value": []
+    },
+    "location": {
+      "value": "uksouth"
+    },
+    "subnets": {
+      "value": [
+        {
+          "name": "snet-app",
+          "properties": {
+            "addressPrefix": "10.10.1.0/24",
+            "defaultOutboundAccess": false
+          }
+        },
+        {
+          "name": "snet-data",
+          "properties": {
+            "addressPrefix": "10.10.2.0/24",
+            "defaultOutboundAccess": false,
+            "serviceEndpoints": [
+              {
+                "service": "Microsoft.Storage"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "tags": {
+      "value": {
+        "Environment": "dev",
+        "Owner": "platform"
+      }
+    },
+    "vnetName": {
+      "value": "vnet-app-dev"
+    }
+  }
+}

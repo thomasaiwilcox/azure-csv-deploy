@@ -1,0 +1,2 @@
+SubscriptionId,ResourceGroupName,Location,VnetName,AddressPrefixes
+11111111-1111-1111-1111-111111111111,rg-network-dev,uksouth,vnet-minimal-dev,10.30.0.0/16

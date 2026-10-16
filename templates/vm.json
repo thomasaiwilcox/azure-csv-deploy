@@ -1,0 +1,70 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": { "type": "string" },
+    "location": { "type": "string" },
+    "tags": { "type": "object", "defaultValue": {} },
+    "zones": { "type": "array", "defaultValue": [] },
+    "identity": { "type": "object", "defaultValue": { "type": "None" } },
+    "plan": { "type": "object", "defaultValue": {} },
+    "vmProperties": { "type": "object" },
+    "osProfile": { "type": "object" },
+    "adminPassword": { "type": "securestring", "defaultValue": "" },
+    "createNic": { "type": "bool", "defaultValue": true },
+    "nicName": { "type": "string" },
+    "nicProperties": { "type": "object", "defaultValue": {} },
+    "createPublicIp": { "type": "bool", "defaultValue": false },
+    "publicIpName": { "type": "string" },
+    "publicIpProperties": { "type": "object", "defaultValue": {} },
+    "extensions": { "type": "array", "defaultValue": [] }
+  },
+  "resources": [
+    {
+      "condition": "[parameters('createPublicIp')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2025-07-01",
+      "name": "[parameters('publicIpName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "zones": "[parameters('zones')]",
+      "sku": { "name": "Standard", "tier": "Regional" },
+      "properties": "[parameters('publicIpProperties')]"
+    },
+    {
+      "condition": "[parameters('createNic')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2025-07-01",
+      "name": "[parameters('nicName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "dependsOn": [ "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIpName'))]" ],
+      "properties": "[parameters('nicProperties')]"
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2025-04-01",
+      "name": "[parameters('vmName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "zones": "[parameters('zones')]",
+      "identity": "[parameters('identity')]",
+      "plan": "[if(empty(parameters('plan')), json('null'), parameters('plan'))]",
+      "dependsOn": [ "[resourceId('Microsoft.Network/networkInterfaces', parameters('nicName'))]" ],
+      "properties": "[union(parameters('vmProperties'), createObject('osProfile', union(parameters('osProfile'), if(empty(parameters('adminPassword')), json('{}'), createObject('adminPassword', parameters('adminPassword'))))))]"
+    },
+    {
+      "copy": { "name": "vmExtensions", "count": "[length(parameters('extensions'))]", "mode": "serial", "batchSize": 1 },
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2025-04-01",
+      "name": "[concat(parameters('vmName'), '/', parameters('extensions')[copyIndex()].name)]",
+      "location": "[parameters('location')]",
+      "dependsOn": [ "[resourceId('Microsoft.Compute/virtualMachines', parameters('vmName'))]" ],
+      "properties": "[parameters('extensions')[copyIndex()].properties]"
+    }
+  ],
+  "outputs": {
+    "vmId": { "type": "string", "value": "[resourceId('Microsoft.Compute/virtualMachines', parameters('vmName'))]" },
+    "primaryNicId": { "type": "string", "value": "[parameters('vmProperties').networkProfile.networkInterfaces[0].id]" }
+  }
+}
