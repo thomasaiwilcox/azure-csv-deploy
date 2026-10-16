@@ -278,7 +278,7 @@ function Invoke-DeploymentPlan {
         [switch] $ContinueOnError
     )
     $requiredCommands = @(
-        'Get-AzContext', 'Set-AzContext', 'Get-AzResourceGroup', 'New-AzResourceGroup',
+        'Get-AzContext', 'Set-AzContext', 'Get-AzResourceGroup', 'New-AzResourceGroup', 'Invoke-AzRestMethod',
         'Test-AzResourceGroupDeployment', 'New-AzResourceGroupDeployment'
     )
     foreach ($command in $requiredCommands) {
@@ -300,8 +300,28 @@ function Invoke-DeploymentPlan {
             if ($null -eq $context -or $context.Subscription.Id -ne $plan.SubscriptionId) {
                 throw "Azure context does not match subscription '$($plan.SubscriptionId)'."
             }
-            $group = Get-AzResourceGroup -DefaultProfile $context -ErrorAction Stop |
-                Where-Object ResourceGroupName -EQ $plan.ResourceGroupName | Select-Object -First 1
+            try {
+                $group = Get-AzResourceGroup -Name $plan.ResourceGroupName -DefaultProfile $context -ErrorAction Stop
+                if ($null -eq $group) { throw 'Resource group lookup returned no result.' }
+            }
+            catch {
+                # Az.Resources can hide the original HTTP error behind a generic
+                # not-found message. Confirm absence with a scoped ARM GET.
+                $groupName = [uri]::EscapeDataString($plan.ResourceGroupName)
+                $path = "/subscriptions/$($plan.SubscriptionId)/resourcegroups/${groupName}?api-version=2021-04-01"
+                $response = Invoke-AzRestMethod -Path $path -Method GET -DefaultProfile $context -ErrorAction Stop
+                $lookupFailure = "Resource group lookup for '$($plan.ResourceGroupName)' failed (HTTP $($response.StatusCode)): $($response.Content)"
+                if ($response.StatusCode -ne 404) { throw $lookupFailure }
+                try {
+                    $details = $response.Content | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+                }
+                catch { throw $lookupFailure }
+                if ($details -isnot [System.Collections.IDictionary] -or -not $details.Contains('error') -or
+                    $details.error -isnot [System.Collections.IDictionary] -or $details.error['code'] -ne 'ResourceGroupNotFound') {
+                    throw $lookupFailure
+                }
+                $group = $null
+            }
             # Validation and WhatIf require an existing resource group.
             if ($null -eq $group) {
                 if ($Action -ne 'Deploy' -or -not $CreateResourceGroups) {

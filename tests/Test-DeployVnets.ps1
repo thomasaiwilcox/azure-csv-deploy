@@ -20,6 +20,11 @@ $global:VnetTestState = @{
     Selections           = [System.Collections.Generic.List[string]]::new()
     Lookups              = [System.Collections.Generic.List[string]]::new()
     Groups               = @()
+    LookupFailure        = $false
+    RestStatus           = 404
+    RestCode             = 'ResourceGroupNotFound'
+    RestContent          = $null
+    RestFailure          = $false
     FailFirst            = $false
     ValidationError      = $false
     FailSubscription     = ''
@@ -35,9 +40,27 @@ function Set-AzContext {
     @{ Subscription = @{ Id = $id } }
 }
 function Get-AzResourceGroup {
-    param($DefaultProfile, $ErrorAction)
+    param($Name, $DefaultProfile, $ErrorAction)
+    if (-not $Name) { throw 'Subscription-wide enumeration is forbidden.' }
     $global:VnetTestState.Lookups.Add($DefaultProfile.Subscription.Id)
-    $global:VnetTestState.Groups | Where-Object SubscriptionId -EQ $DefaultProfile.Subscription.Id
+    if ($global:VnetTestState.LookupFailure) { throw 'Mock lookup failure: resource group does not exist.' }
+    $group = $global:VnetTestState.Groups | Where-Object {
+        $_.SubscriptionId -eq $DefaultProfile.Subscription.Id -and $_.ResourceGroupName -eq $Name
+    }
+    if ($null -eq $group) { throw 'Resource group does not exist.' }
+    $group
+}
+function Invoke-AzRestMethod {
+    param($Path, $Method, $DefaultProfile, $ErrorAction)
+    Assert ($Method -eq 'GET' -and $Path -like "/subscriptions/$($DefaultProfile.Subscription.Id)/resourcegroups/*?api-version=2021-04-01") 'Fallback must GET the target group in the explicit context.'
+    if ($global:VnetTestState.RestFailure) { throw 'Mock authentication failure.' }
+    $content = if ($null -ne $global:VnetTestState.RestContent) {
+        $global:VnetTestState.RestContent
+    }
+    else {
+        @{ error = @{ code = $global:VnetTestState.RestCode; message = 'Mock Azure failure details.' } } | ConvertTo-Json
+    }
+    @{ StatusCode = $global:VnetTestState.RestStatus; Content = $content }
 }
 function New-AzResourceGroup {
     param($Name, $Location, $DefaultProfile, $ErrorAction)
@@ -104,6 +127,51 @@ try {
     }
     Assert (($global:VnetTestState.Selections -join ',') -eq ($subscriptions -join ',')) 'Select the CSV subscription for every row.'
     Assert (($global:VnetTestState.Lookups -join ',') -eq ($subscriptions -join ',')) 'Group lookups must use the CSV subscription.'
+    # BUG-001: a generic cmdlet message is not proof that the group is missing.
+    # Even with -CreateResourceGroups, access/service failures must stop the row.
+    $global:VnetTestState.LookupFailure = $true
+    foreach ($case in @(
+        @{ Status = 401; Code = 'InvalidAuthenticationToken' },
+        @{ Status = 403; Code = 'AuthorizationFailed' },
+        @{ Status = 500; Code = 'InternalServerError' },
+        @{ Status = 404; Code = 'SubscriptionNotFound' },
+        @{ Status = 200; Code = '' }
+    )) {
+        $global:VnetTestState.Calls.Clear()
+        $global:VnetTestState.RestStatus = $case.Status
+        $global:VnetTestState.RestCode = $case.Code
+        $failures = [System.Collections.Generic.List[object]]::new()
+        Assert-Throws {
+            & $scriptFile @common -CreateResourceGroups -WarningAction SilentlyContinue |
+                ForEach-Object { $failures.Add($_) }
+        } '*operations failed*'
+        Assert ($global:VnetTestState.Calls.Count -eq 0) 'Failed lookup must not create a group or deploy.'
+        Assert ($failures.Count -eq 1 -and $failures[0].Status -eq 'Failed') 'Lookup failure must return a failed result.'
+        Assert ($failures[0].Error.Contains("HTTP $($case.Status)") -and
+            $failures[0].Error.Contains($case.Code) -and $failures[0].Error.Contains('Mock Azure failure details.')) 'Report the confirmed HTTP status, Azure code and message.'
+        Assert (-not $failures[0].Error.Contains('resource group does not exist')) 'Do not repeat the misleading original lookup error.'
+    }
+    # A malformed 404 body cannot prove absence; preserve the HTTP response.
+    $global:VnetTestState.RestStatus = 404
+    foreach ($content in @('not JSON', '{}', '{"error":{}}', '{"error":null}')) {
+        $global:VnetTestState.RestContent = $content
+        $failures = [System.Collections.Generic.List[object]]::new()
+        Assert-Throws {
+            & $scriptFile @common -CreateResourceGroups -WarningAction SilentlyContinue |
+                ForEach-Object { $failures.Add($_) }
+        } '*operations failed*'
+        Assert ($global:VnetTestState.Calls.Count -eq 0) 'Unconfirmed absence must not create a group or deploy.'
+        Assert ($failures.Count -eq 1 -and $failures[0].Error.Contains('HTTP 404') -and
+            $failures[0].Error.Contains($content)) 'Malformed confirmation must retain its status and body.'
+    }
+    $global:VnetTestState.RestContent = $null
+    $global:VnetTestState.RestFailure = $true
+    Assert-Throws { & $scriptFile @common -CreateResourceGroups -WarningAction SilentlyContinue } '*operations failed*'
+    Assert ($global:VnetTestState.Calls.Count -eq 0) 'Authentication failure must not create a group or deploy.'
+    $global:VnetTestState.RestFailure = $false
+    $global:VnetTestState.LookupFailure = $false
+    $global:VnetTestState.RestStatus = 404
+    $global:VnetTestState.RestCode = 'ResourceGroupNotFound'
     $global:VnetTestState.Calls.Clear()
     $null = & $scriptFile @common -Action WhatIf
     Assert (@($global:VnetTestState.Calls | Where-Object { $_.Kind -eq 'Deployment' -and $_.Preview }).Count -eq 2) 'What-if not forwarded.'

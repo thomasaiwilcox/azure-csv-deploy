@@ -22,8 +22,18 @@ function Set-AzContext {
     @{ Subscription = @{ Id = $SubscriptionId } }
 }
 function Get-AzResourceGroup {
-    param($DefaultProfile, $ErrorAction)
-    $global:BatchTest.Groups | Where-Object SubscriptionId -EQ $DefaultProfile.Subscription.Id
+    param($Name, $DefaultProfile, $ErrorAction)
+    if (-not $Name) { throw 'Subscription-wide enumeration is forbidden.' }
+    $group = $global:BatchTest.Groups | Where-Object {
+        $_.SubscriptionId -eq $DefaultProfile.Subscription.Id -and $_.ResourceGroupName -eq $Name
+    }
+    if ($null -eq $group) { throw 'Resource group does not exist.' }
+    $group
+}
+function Invoke-AzRestMethod {
+    param($Path, $Method, $DefaultProfile, $ErrorAction)
+    Assert ($Method -eq 'GET' -and $Path -like "/subscriptions/$($DefaultProfile.Subscription.Id)/resourcegroups/*?api-version=2021-04-01") 'Fallback must GET the target group in the explicit context.'
+    @{ StatusCode = 404; Content = '{"error":{"code":"ResourceGroupNotFound"}}' }
 }
 function New-AzResourceGroup {
     param($Name, $Location, $DefaultProfile, $ErrorAction)
